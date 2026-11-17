@@ -1,0 +1,54 @@
+# Local development. Copy .env.example to .env first.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: scam
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Copy .env.example to .env and choose a password}
+      POSTGRES_DB: scamshield
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scam -d scamshield"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  api:
+    build: ./api
+    image: scamshield-api:${TAG:-local}
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  ui:
+    build: ./ui
+    image: scamshield-ui:${TAG:-local}
+    environment:
+      SITE_ADDRESS: ":80"
+    depends_on:
+      api: {condition: service_healthy}
+    ports: ["127.0.0.1:8080:80"]
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

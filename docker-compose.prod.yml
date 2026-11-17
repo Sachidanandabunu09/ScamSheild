@@ -1,0 +1,49 @@
+# Standalone cloud configuration; do not merge with the local file.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: scam
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      POSTGRES_DB: scamshield
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scam -d scamshield"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  api:
+    image: scamshield-api:${TAG:?Use scripts/deploy.sh with a release tag}
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+  ui:
+    image: scamshield-ui:${TAG:?Use scripts/deploy.sh with a release tag}
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set your domain in .env}
+    depends_on:
+      api: {condition: service_healthy}
+    ports: ["80:80", "443:443"]
+    volumes: ["caddy_data:/data", "caddy_config:/config"]
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+api/model/
+*.db
+.env
+.env.*
+!.env.example
+backups/
+.releases/
+.deploy.lock
+*.pem
+*.key
+*.tar.gz
+*.log
